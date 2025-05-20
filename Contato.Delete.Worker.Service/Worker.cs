@@ -6,29 +6,27 @@ namespace Contato.Delete.Worker.Service
     {
         private readonly ILogger<Worker> _logger;
         private readonly IContatoConsumer _consumer;
-        private readonly IServiceProvider _serviceProvider;
-        public Worker(ILogger<Worker> logger, IContatoConsumer consumer, IServiceProvider serviceProvider)
+
+        public Worker(ILogger<Worker> logger, IContatoConsumer consumer)
         {
             _logger = logger;
             _consumer = consumer;
-            _serviceProvider = serviceProvider;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            using var scope = _serviceProvider.CreateScope();
-            var consumer = scope.ServiceProvider.GetRequiredService<IContatoConsumer>();
+            _logger.LogInformation("Iniciando worker e consumidor da fila...");
 
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                if (_logger.IsEnabled(LogLevel.Information))
-                {
-                    _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                }
+            _consumer.StartConsuming(stoppingToken);
 
-                _consumer.StartConsuming(stoppingToken);
-                await Task.Delay(1000, stoppingToken);
-            }
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+
+        public override void Dispose()
+        {
+            _logger.LogInformation("Encerrando worker e fechando consumidor da fila.");
+            (_consumer as IDisposable)?.Dispose();
+            base.Dispose();
         }
     }
 }
